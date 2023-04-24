@@ -8,12 +8,12 @@ RUN yum -y update &&\
     yum -y install curl git &&\
     adduser compass_user
 
-RUN mkdir -p /home/compass_user/OPERA
+USER compass_user
 
-RUN chown -R compass_user:compass_user /home/compass_user/OPERA &&\
+RUN mkdir -p /home/compass_user/OPERA &&\
     chmod -R 755 /home/compass_user
 
-USER compass_user
+#RUN chown -R compass_user:compass_user /home/compass_user/OPERA &&\
 
 ENV CONDA_PREFIX=/home/compass_user/miniconda3
 
@@ -27,7 +27,8 @@ ENV PATH=${CONDA_PREFIX}/bin:${PATH}
 RUN ${CONDA_PREFIX}/bin/conda init bash
 
 # copy COMPASS and set compass_user as owner
-COPY --chown=compass_user:compass_user . /home/compass_user/OPERA/COMPASS
+#COPY --chown=compass_user:compass_user . /home/compass_user/OPERA/COMPASS
+COPY . /home/compass_user/OPERA/COMPASS
 
 # create CONDA environment
 RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker/specfile.txt
