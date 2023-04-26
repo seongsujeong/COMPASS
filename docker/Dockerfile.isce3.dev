@@ -30,8 +30,12 @@ RUN ${CONDA_PREFIX}/bin/conda init bash
 COPY --chown=compass_user:compass_user . /home/compass_user/OPERA/COMPASS
 
 # create CONDA environment
-RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker/specfile_isce3_0.11.0.dev.txt &&\
-    mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
+RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker/specfile_isce3_0.11.0.dev.txt
+
+SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
+
+# Install ISCE3
+RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     mkdir -p /home/compass_user/OPERA/ISCE3/build &&\
     cd /home/compass_user/OPERA/ISCE3/build &&\
     cmake cmake -DCMAKE_INSTALL_PREFIX=/home/compass_user/OPERA/ISCE3/install -DWITH_CUDA=OFF /home/compass_user/OPERA/COMPASS/isce3_0.11.0.dev &&\
@@ -42,7 +46,7 @@ RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker
     cd `find $CONDA_PREFIX -name "site-packages"|sort|tail -1` &&\
     find /home/compass_user/OPERA/ISCE3/install/packages -maxdepth 1 -type d|sort|awk 'NR>1'|xargs -I{} ln -s {}
 
-SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
+
 
 WORKDIR /home/compass_user/OPERA
 
