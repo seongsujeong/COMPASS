@@ -34,7 +34,7 @@ RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker
     mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     mkdir -p /home/compass_user/OPERA/ISCE3/build &&\
     cd /home/compass_user/OPERA/ISCE3/build &&\
-    cmake cmake -DCMAKE_INSTALL_PREFIX=/home/compass_user/OPERA/ISCE3/install -DWITH_CUDA=OFF /home/compass_user/OPERA/COMPASS/isce3_dev &&\
+    cmake cmake -DCMAKE_INSTALL_PREFIX=/home/compass_user/OPERA/ISCE3/install -DWITH_CUDA=OFF /home/compass_user/OPERA/COMPASS/isce3_0.11.0.dev &&\
     make -j32 VERBOSE=ON &&\
     make install &&\
     cd $CONDA_PREFIX/lib &&\
