@@ -5,7 +5,7 @@ LABEL author="OPERA ADT" \
     version="0.2-gamma"
 
 RUN yum -y update &&\
-    yum -y install curl git &&\
+    yum -y install curl git make&&\
     adduser compass_user
 
 USER compass_user
