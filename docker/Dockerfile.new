@@ -44,12 +44,12 @@ RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.6.ta
     python -m pip install ./s1-reader
 
 # installing RAiDER
-RUN mkdir RAiDER &&\
-    git clone https://github.com/dbekaert/RAiDER.git RAiDER &&\
-    cd RAiDER &&\
-    git checkout tags/v0.4.2 &&\
-    cd .. &&\
-    python -m pip install ./RAiDER
+#RUN mkdir RAiDER &&\
+#    git clone https://github.com/dbekaert/RAiDER.git RAiDER &&\
+#    cd RAiDER &&\
+#    git checkout tags/v0.4.2 &&\
+#    cd .. &&\
+#    python -m pip install ./RAiDER
 
 
 # installing OPERA COMPASS
