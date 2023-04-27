@@ -41,6 +41,7 @@ RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     cmake cmake -DCMAKE_INSTALL_PREFIX=/home/compass_user/OPERA/ISCE3/install -DWITH_CUDA=OFF /home/compass_user/OPERA/COMPASS/isce3_0.11.0.dev &&\
     make -j32 VERBOSE=ON &&\
     make install &&\
+    rm -rf /home/compass_user/OPERA/ISCE3/build/* &&\
     cd $CONDA_PREFIX/lib &&\
     find /home/compass_user/OPERA/ISCE3/install/lib64 -name "*.so*" -exec ln -s {} \; &&\
     cd `find $CONDA_PREFIX -name "site-packages"|sort|tail -1` &&\
