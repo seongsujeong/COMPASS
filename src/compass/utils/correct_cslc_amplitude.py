@@ -9,136 +9,15 @@ import argparse
 import numpy as np
 from osgeo import gdal, osr
 
+from h5_helpers import (DATA_PATH, METADATA_PATH, get_cslc_amplitude,
+                        get_dataset_geotransform,
+                        get_radiometric_normalization_correction,
+                        get_resampled_noise_correction)
+
 # Constants for dataset location in HDF5 file
-PATH_CSLC_LAYER_IN_HDF = '/data'
-PATH_LOCAL_INCIDENCE_ANGLE = '/data/local_incidence_angle'
-PATH_NOISE_LUT = '/metadata/noise_information/thermal_noise_lut'
-
-
-def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None):
-    '''
-    Load the amplitude from CSLC GDAL dataset.
-    Apply noise correction and/or radiometric normalization when
-    the data are provided.
-
-    Parameters
-    ----------
-    ds_cslc_amp: osgeo.gdal.Dataset
-        GDAL Raster dataset for CSLC amplitude
-    ds_local_incidence_angle: osgeo.gdal.Dataset
-        GDAL Raster dataset for local incidence angle
-    ds_noise_lut: osgeo.gdal.Dataset
-        GDAL Raster dataset noise LUT
-
-    Returns
-    -------
-    arr_cslc: np.ndarray
-        CSLC amplitude
-    '''
-
-    # Load CSLC amplutude into array
-    arr_cslc = ds_cslc_amp.ReadAsArray()
-
-    if ds_noise_lut is not None:
-        print('Applying noise removal')
-        # Apply noise correction
-
-        arr_cslc = arr_cslc ** 2 - ds_noise_lut.ReadAsArray()
-        arr_cslc[arr_cslc < 0.0] = 0.0
-        arr_cslc = np.sqrt(arr_cslc)
-
-    if ds_local_incidence_angle is not None:
-        print('Applying radiometric mormalization')
-        local_incidence_angle_arr_rad = \
-            np.deg2rad(ds_local_incidence_angle.ReadAsArray())
-        # Apply radiometric normalization
-        correction_factor = np.sqrt(np.tan(local_incidence_angle_arr_rad))
-        arr_cslc *= correction_factor
-
-    return arr_cslc
-
-
-def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol,
-                          noise_correction=True,
-                          radiometric_normalization=True,
-                          resampling_alg='BILINEAR'):
-    '''
-    Get the GDAL dataset for CSLC layer and resample &
-    reprojecte noise LUT (when user opted in)
-
-    Parameters
-    ----------
-    cslc_path: str
-        path to the CSLC HDF5 file
-    cslc_static_path: str
-        path to the CSLC static layer HDF5 file
-    pol: str
-        Polarization
-    noise_correction: bool
-        Flag to turn on/off noise correction
-    radiometric_normalization: bool
-        Flag to turn on/ott radiometric normalization
-    resampling_alg: str
-        Resampling algorithm for gdal.Warp()
-
-    Returns
-    -------
-    (ds_cslc,
-     ds_incidence_angle,
-     ds_noise_resampled): tuple
-        Respectively, GDAL raster dataset for CSLC,
-        GDAL raster dataset for local incidence angle, and
-        GDAL raster dataset for noise LUT
-        (resampled to the same geogrid as the other two)
-    '''
-    # Get the geotransform and dimensions
-
-
-    prefix_netcdf = 'DERIVED_SUBDATASET:AMPLITUDE:NETCDF'
-
-    path_cslc = f'{prefix_netcdf}:{cslc_path}:{PATH_CSLC_LAYER_IN_HDF}/{pol}'
-    path_local_incidence = f'NETCDF:{cslc_static_path}:{PATH_LOCAL_INCIDENCE_ANGLE}'
-    path_noise_lut = f'NETCDF:{cslc_path}:{PATH_NOISE_LUT}'
-
-    ds_in = gdal.Open(path_cslc, gdal.GA_ReadOnly)
-
-    ds_noise_lut = (gdal.Open(path_noise_lut, gdal.GA_ReadOnly) if
-                        noise_correction else None)
-
-    ds_local_incidence_angle = (gdal.Open(path_local_incidence, gdal.GA_ReadOnly) if
-                        radiometric_normalization else None)
-
-    # Prepare for the reprojection
-    # Reproject the CSLC layer, and
-    # Define the source and target spatial references
-    gt_in = ds_in.GetGeoTransform()
-    xsize = ds_in.RasterXSize
-    ysize = ds_in.RasterYSize
-
-    src_srs = osr.SpatialReference()
-    src_srs.ImportFromWkt(ds_in.GetProjectionRef())
-
-    # Convert the corner points in `epsg_out`
-    extent_reprojected=[gt_in[0],
-                        gt_in[3] + gt_in[5] * ysize,
-                        gt_in[0] + gt_in[1] * xsize,
-                        gt_in[3]]
-
-    # Put together the warp options
-    warp_options = gdal.WarpOptions(format='MEM',
-                                    resampleAlg=resampling_alg,
-                                    xRes=gt_in[1],
-                                    yRes=abs(gt_in[5]),
-                                    outputBounds=extent_reprojected,
-                                    dstSRS=src_srs)
-
-    # Resample the noise LUT
-    ds_noise_resampled = (gdal.Warp('', ds_noise_lut, options=warp_options)
-                          if ds_noise_lut else None)
-
-    return (ds_in,
-            ds_local_incidence_angle,
-            ds_noise_resampled)
+PATH_CSLC_LAYER_IN_HDF = DATA_PATH
+PATH_LOCAL_INCIDENCE_ANGLE = f'{DATA_PATH}/local_incidence_angle'
+PATH_NOISE_LUT = '{METADATA_PATH}/noise_information/thermal_noise_lut'
 
 
 def save_amplitude(amplitude_arr, geotransform_cslc, epsg_cslc,
@@ -231,21 +110,40 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
 
-    cslc_layer, noise_lut, local_incidence_angle = \
-        get_cslc_gdal_dataset(args.cslc_path,
-                              args.cslc_static_path,
-                              args.pol,
-                              args.apply_noise_correction,
-                              args.apply_radiometric_normalization)
-    amplitude_arr = load_amplitude(cslc_layer, noise_lut, local_incidence_angle)
+    if not args.apply_noise_correction \
+            and not args.apply_radiometric_normalization:
+        return
 
-    geotransform_cslc = cslc_layer.GetGeoTransform()
+    cslc_amplitude_arr = get_cslc_amplitude(args.cslc_path, args.pol)
 
-    proj_cslc = cslc_layer.GetProjection()
-    srs_cslc = osr.SpatialReference(wkt=proj_cslc)
-    epsg_cslc = int(srs_cslc.GetAuthorityCode(None))
+    cslc_dataset_path = f'{DATA_PATH}/{args.pol}'
+    cslc_geotransform = get_dataset_geotransform(args.cslc_path,
+                                                 cslc_dataset_path)
 
-    save_amplitude(amplitude_arr, geotransform_cslc, epsg_cslc, args.out_path)
+    # Subtract noise correction if needed
+    if args.apply_noise_correction:
+        # Get noise correction resampled to CSLC geotransform and geogrid
+        # shape
+        noise_correction_arr = get_resampled_noise_correction(
+            args.cslc_static_path, cslc_amplitude_arr.shape, cslc_geotransform)
+
+        # Covert amplitude to power, subtract noise, and revert to amplitude
+        cslc_amplitude_arr = \
+            cslc_amplitude_arr ** 2 - noise_correction_arr
+        cslc_amplitude_arr[cslc_amplitude_arr < 0.0] = 0.0
+        cslc_amplitude_arr = np.sqrt(cslc_amplitude_arr)
+
+    # Multiply radiometric normalization correction if needed
+    if args.apply_radiometric_normalization:
+        radiometric_normalization_arr = \
+            get_radiometric_normalization_correction(args.cslc_static_path)
+
+        cslc_amplitude_arr *= radiometric_normalization_arr
+
+    epsg_cslc = get_dataset_geotransform(args.cslc_path, cslc_dataset_path)
+
+    save_amplitude(cslc_amplitude_arr, cslc_geotransform, epsg_cslc,
+                   args.out_path)
 
 
 if __name__=='__main__':
