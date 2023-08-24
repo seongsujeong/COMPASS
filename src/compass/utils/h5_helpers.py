@@ -895,3 +895,147 @@ def get_georaster_bounds(filename: str, pol: str = 'VV'):
         max_y = max(max_y, y)
 
     return (min_x, max_x, min_y, max_y)
+
+
+def get_cslc_amplitude(cslc_path, pol):
+    '''
+    Get the GDAL dataset for CSLC layer and resample &
+    reprojecte noise LUT (when user opted in)
+
+    Parameters
+    ----------
+    cslc_path: str
+        path to the CSLC HDF5 file
+    pol: str
+        Polarization
+
+    Returns
+    -------
+    cslc_amp_arr: np.ndarray
+        Amplitude of CSLC for given polarization
+    '''
+    # Check if dataset_path exists
+    dataset_path = f'{DATA_PATH}/{pol}'
+    with h5py.File(cslc_path, 'r') as h_cslc:
+        pass
+
+    # Prepare DERIVED_SUBDATASET path for CSLC
+    prefix_netcdf = 'DERIVED_SUBDATASET:AMPLITUDE:NETCDF'
+    path_cslc = f'{prefix_netcdf}:{cslc_path}:{dataset_path}'
+
+    ds_cslc = gdal.Open(path_cslc, gdal.GA_ReadOnly)
+    cslc_amp_arr = ds_cslc.ReadAsArray()
+
+    return cslc_amp_arr
+
+
+def get_radiometric_normalization_correction(cslc_path):
+    '''
+    Get the GDAL dataset for CSLC layer and resample &
+    reprojecte noise LUT (when user opted in)
+
+    Parameters
+    ----------
+    cslc_static_path: str
+        path to the CSLC static layer HDF5 file
+
+    Returns
+    -------
+    rad_norm_corr: np.ndarray
+        ?
+    '''
+    # Get the geotransform and dimensions
+    path_local_incidence = \
+        f'NETCDF:{cslc_static_path}:{PATH_LOCAL_INCIDENCE_ANGLE}'
+
+    # Load local incidence angle and covert to radiometric normalization
+    # correction
+    ds_local_incidence_angle = gdal.Open(path_local_incidence, gdal.GA_ReadOnly
+    local_incidence_angle_arr_rad = \
+        np.deg2rad(ds_local_incidence_angle.ReadAsArray())
+    rad_norm_corr = np.sqrt(np.tan(local_incidence_angle_arr_rad))
+
+    return rad_norm_corr
+
+
+def get_resampled_noise_correction(cslc_static_path, geotransform,
+                                   geogrid_shape, resampling_alg='BILINEAR'):
+    '''
+    Get noise LUT from CSLC static HDF5 and reproject to given geotransform
+    with given resampling algorithm
+
+    Parameters
+    ----------
+    cslc_static_path: str
+        path to the CSLC static layer HDF5 file
+    geotransform: np.ndarray
+        Geotranform to gdal.warp() noise to
+    geogrid_shape: tuple(int)
+        Output shape
+    resampling_alg: str
+        Resampling algorithm for gdal.Warp()
+
+    Returns
+    -------
+    arr_noise_resampled: np.ndarray
+        Resampled to the same geogrid as the other two)
+    '''
+    # Get noise LUT dataset
+    noise_lut_dataset_path = '{METADATA_PATH}/noise_information/thermal_noise_lut'
+    path_noise_lut = f'NETCDF:{cslc_static_path}:{noise_lut_dataset_path}'
+    ds_noise_lut = gdal.Open(path_noise_lut, gdal.GA_ReadOnly)
+
+    xsize, ysize = geogrid_shape
+
+    # Define the spatial reference
+    src_srs = osr.SpatialReference()
+    src_srs.ImportFromWkt(ds_in.GetProjectionRef())
+
+    # Convert the corner points in `epsg_out`
+    extent_reprojected = [geotransform[0],
+                          geotransform[3] + geotransform[5] * ysize,
+                          geotransform[0] + geotransform[1] * xsize,
+                          geotransform[3]]
+
+    # Put together the warp options
+    warp_options = gdal.WarpOptions(format='MEM',
+                                    resampleAlg=resampling_alg,
+                                    xRes=geotransform[1],
+                                    yRes=abs(geotransform[5]),
+                                    outputBounds=extent_reprojected,
+                                    dstSRS=src_srs)
+
+    # Resample the noise LUT
+    ds_noise_resampled = (gdal.Warp('', ds_noise_lut, options=warp_options)
+                          if ds_noise_lut else None)
+
+    arr_noise_resampled = ds_noise_lut.ReadAsArray()
+
+    return arr_noise_resampled
+
+
+def get_dataset_geotransform(h5_path, h5_dataset_path):
+    '''
+    Get the EPSG of geocoded dataset in an HDF5
+
+    Parameters
+    ----------
+    h5_path: str
+        Path to the HDF5 file
+    h5_dataset_path: str
+        Path to dataset in given HDF5 file
+
+    Returns
+    -------
+    epsg: int
+        EPSG of geocoded dataset
+    '''
+    # Prepare GDAL NETCDF path for dataset
+    netcdf_dataset_path = f'NETCDF:{h5_path}:{h5_dataset_path}'
+
+    ds = gdal.Open(netcdf_dataset_path, gdal.GA_ReadOnly)
+    proj = ds.GetProjection()
+    srs = osr.SpatialReference(wkt=proj)
+    epsg = int(srs.GetAuthorityCode(None))
+
+    return epsg
