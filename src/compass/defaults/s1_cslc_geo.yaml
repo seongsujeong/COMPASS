@@ -61,6 +61,8 @@ runconfig:
               # Boolean flag to activate/deactivate model-based
               # corrections while geocoding the burst
               enabled: True
+              # Turn on or off azimuth FM rate mismatch mitigation
+              az_fm_rate_mismatch: True
               # LUT spacing in range direction in meters
               range_spacing: 120
               # LUT spacing in azimuth direction in seconds

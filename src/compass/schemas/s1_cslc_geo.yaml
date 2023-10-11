@@ -94,6 +94,8 @@ lut_options:
   # Boolean flag to activate/deactivate model-based
   # corrections while geocoding the burst
   enabled: bool(required=False)
+  # Turn on or off azimuth FM rate mismatch mitigation
+  az_fm_rate_mismatch: bool(required=False)
   # LUT spacing in range direction in meters
   range_spacing: num(min=0, required=False)
   # LUT spacing in azimuth direction in seconds

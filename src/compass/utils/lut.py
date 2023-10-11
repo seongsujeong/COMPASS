@@ -20,7 +20,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
                                weather_model_path=None,
                                rg_step=200, az_step=0.25,
                                delay_type='dry',
-                               geo2rdr_params=None):
+                               geo2rdr_params=None,
+                               apply_az_fm_rate=True):
     '''
     Sum correction LUTs and returns cumulative correction LUT in slant range
     and azimuth directions
@@ -81,7 +82,10 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
-    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+    if apply_az_fm_rate:
+        az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+    else:
+        az_lut_data = -bistatic_delay.data
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,

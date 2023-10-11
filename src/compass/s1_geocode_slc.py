@@ -96,7 +96,8 @@ def run(cfg: GeoRunConfig):
                                            rg_step=cfg.lut_params.range_spacing,
                                            az_step=cfg.lut_params.azimuth_spacing,
                                            delay_type=cfg.tropo_params.delay_type,
-                                           geo2rdr_params=cfg.geo2rdr_params)
+                                           geo2rdr_params=cfg.geo2rdr_params,
+                                           apply_az_fm_rate=cfg.lut_params.az_fm_rate_mismatch)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
