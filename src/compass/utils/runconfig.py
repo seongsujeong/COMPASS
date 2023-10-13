@@ -152,7 +152,8 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     # Check 'dynamic_ancillary_file_groups' section of runconfig
     # Check that DEM file exists and is GDAL-compatible
     dem_path = group_cfg['dynamic_ancillary_file_group']['dem_file']
-    helpers.check_file_path(dem_path)
+    if not dem_path.startswith('/vsis3'):
+        helpers.check_file_path(dem_path)
     helpers.check_dem(dem_path)
 
     # Check 'product_path_group' section of runconfig.
